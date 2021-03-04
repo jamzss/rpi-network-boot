@@ -18,8 +18,8 @@ mkdir rootmnt
 mkdir bootmnt
 sudo mount /dev/mapper/loop0p2 rootmnt/
 sudo mount /dev/mapper/loop0p1 bootmnt/
-sudo cp -a rootmnt/* /nfs/raspi1/
-sudo cp -a bootmnt/* /nfs/raspi1/boot/
+sudo cp -av rootmnt/* /nfs/raspi1/
+sudo cp -av bootmnt/* /nfs/raspi1/boot/
 
 
 ###
