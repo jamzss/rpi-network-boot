@@ -33,6 +33,7 @@ sudo chmod 777 /tftpboot
 sudo touch /nfs/raspi1/boot/ssh
 sudo sed -i /UUID/d /nfs/raspi1/etc/fstab
 echo "console=serial0,115200 console=tty root=/dev/nfs nfsroot=192.168.10.1:/nfs/raspi1,vers=3 rw ip=dhcp rootwait elevator=deadline" | sudo tee /nfs/raspi1/boot/cmdline.txt
+echo "/nfs/raspi1 *(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
 
 
 ###
@@ -62,6 +63,7 @@ sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
 sudo sh -c "sudo iptables-save > /etc/iptables.v4"
 sudo sed -i "$ d" /etc/rc.local
 echo 'sudo sh -c "iptables-restore < /etc/iptables.v4"' | sudo tee -a /etc/rc.local
+echo 'sudo route add -net default gw 192.168.10.1 netmask 0.0.0.0 dev eth0' | sudo tee -a /etc/rc.local
 echo "1" | sudo tee /proc/sys/net/ipv4/ip_forward
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 
