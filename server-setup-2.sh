@@ -2,7 +2,7 @@
 ####  server-setup-2.sh
 ####
 
-# Run while connected to your isolated network
+# Run while connected to your isolated network and after setting your country code in raspi-config
 
 # Here you will need to change values to
 # your specific setup.
@@ -16,9 +16,6 @@ network_ssid="BTHub5-7Q5F-5Ghz"
 
 # The password of your wireless network
 network_psk="ecc92cd96a"
-
-# Your country code, used for WiFi setup. You can find yours here: https://www.iban.com/country-codes
-country="GB"
 
 # The address of the router on your wireless network
 router_address="192.168.1.254"
@@ -46,10 +43,9 @@ echo 'log-dhcp' | sudo tee -a /etc/dnsmasq.conf
 echo 'enable-tftp' | sudo tee -a /etc/dnsmasq.conf
 echo 'tftp-root=/tftpboot' | sudo tee -a /etc/dnsmasq.conf
 echo 'pxe-service=0,"Raspberry Pi Boot"' | sudo tee -a /etc/dnsmasq.conf
-echo "country=$country" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 echo "network={" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
-echo 'ssid="$network_ssid"' | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
-echo 'psk="$network_psk"' | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
+echo ssid=\"$network_ssid\" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
+echo psk=\"$network_psk\" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 echo "}" | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 
 
