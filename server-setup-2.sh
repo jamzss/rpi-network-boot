@@ -84,7 +84,7 @@ echo "dhcp-range=192.168.10.20,192.168.10.30,12h" | sudo tee -a /etc/dnsmasq.con
 ### Set up server ethernet interface
 ###
 
-echo "interface eth0" | sudo tee -a /etc/dhcpd.conf
+echo "interface eth0" | sudo tee -a /etc/dhcpcd.conf
 echo "static ip_address=192.168.10.1" | sudo tee -a /etc/dhcpcd.conf
 sudo sed -i "$ d" /etc/resolv.conf
 echo "nameserver $router_address" | sudo tee -a /etc/resolv.conf
