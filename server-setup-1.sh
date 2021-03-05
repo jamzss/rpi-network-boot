@@ -8,11 +8,11 @@
 ### Download and install the RaspiOS image
 ###
 
-cd /
+cd /home/pi
 sudo apt install unzip kpartx dnsmasq nfs-kernel-server -y
 sudo mkdir -p /nfs/raspi1
 sudo wget https://downloads.raspberrypi.org/raspios_armhf/images/raspios_armhf-2021-01-12/2021-01-11-raspios-buster-armhf.zip
-unzip -v 2021-01-11-raspios-buster-armhf.zip
+unzip 2021-01-11-raspios-buster-armhf.zip
 sudo kpartx -a -v 2021-01-11-raspios-buster-armhf.img
 mkdir rootmnt
 mkdir bootmnt
