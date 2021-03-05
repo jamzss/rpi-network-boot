@@ -90,4 +90,11 @@ sudo sed -i "$ d" /etc/resolv.conf
 echo "nameserver $router_address" | sudo tee -a /etc/resolv.conf
 
 
+###
+### Final wireless configuration
+###
+
+sudo wpa_cli -i wlan0 reconfigure
+
+
 echo "Done!"
