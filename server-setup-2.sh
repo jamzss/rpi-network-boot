@@ -63,7 +63,9 @@ sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
 sudo sh -c "sudo iptables-save > /etc/iptables.v4"
 sudo sed -i "$ d" /etc/rc.local
 echo 'sudo sh -c "iptables-restore < /etc/iptables.v4"' | sudo tee -a /etc/rc.local
+echo "sleep 3"
 echo 'sudo route add -net default gw 192.168.10.1 netmask 0.0.0.0 dev eth0' | sudo tee -a /etc/rc.local
+echo "sudo route del -net 0.0.0.0 gw 192.168.10.1 netmask 0.0.0.0 dev eth0" | sudo tee -a /etc/rc.local
 echo "1" | sudo tee /proc/sys/net/ipv4/ip_forward
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 
@@ -98,3 +100,4 @@ sudo wpa_cli -i wlan0 reconfigure
 
 
 echo "Done!"
+echo "Please reboot with sudo reboot"
