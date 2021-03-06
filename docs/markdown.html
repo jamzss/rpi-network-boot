@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimal-ui">
+    <title>Network boot a Raspberry Pi 4</title>
+    <link type="text/css" rel="stylesheet" href="assets/css/github-markdown-guide.css">
+    <link type="text/css" rel="stylesheet" href="assets/css/pilcrow.css">
+    <link type="text/css" rel="stylesheet" href="assets/css/hljs-github.min.css"/>
+    <link type="text/css" rel="stylesheet" href="assets/css/images.css"/>
+  </head>
+  <body>
+    <article class="markdown-body"><h1 id="network-boot-a-raspberry-pi-4"><a class="header-link" href="#network-boot-a-raspberry-pi-4"></a>Network boot a Raspberry Pi 4</h1>
+      <p>In this guide I will be going over the entire process of preparing a Raspberry Pi 4 for network booting, from configuring a custom Raspberry Pi OS image to setting up a DHCP/TFTP server in order to serve it to a Raspberry Pi 4.</p>
+      <p>This guide aims to guide you through all stages of the process, instead of having to follow different guides for different topics in order to achieve working network booting. I will be explaining everything from a beginners perspective, so don&#39;t worry if you don&#39;t have a lot of experience in this area! </p>
+      
+      <h2 id="more-about-network-booting"><a class="header-link" href="#more-about-network-booting"></a>More about Network booting</h2>
+<p>Network booting is the process of, you guessed it, booting a computer over the network with no copy of the operating system stored locally. The goal of this guide is to set up this process with a pair of Raspberry Pi&#39;s by configuring different programs and services in order to serve up the OS to the client when it tries to boot.</p>
+<p>If you&#39;d like to read more indepth into the tools we&#39;ll be using in this guide, I&#39;ve written a longer post about the project which you can read here:
+(link to blog post)</p>
+<p>The interactions we hope to set up between the client and server will allow for the client to receive an IP address via DHCP, and an operating system via NFS and TFTP, summarised in a diagram below:</p>
+<img src="assets/images/n.png" class="center">
+      
+      <h3 id="required-resources"><a class="header-link" href="#required-resources"></a>Required Resources</h3>
+      <p>This guide will assume that you are also using a Raspberry Pi (either a 3B+ or a 4) as a server, and a Raspberry Pi 4 as a client. The Raspberry Pi 4 is the first Pi to come with a <strong>flashable bootloader</strong> with PXE support, making this process much simpler than previous models.</p>
+      <h4 id="you-will-need-the-following-things-in-order-to-complete-this-process:"><a class="header-link" href="#you-will-need-the-following-things-in-order-to-complete-this-process:"></a>You will need the following things in order to complete this process:</h4>
+      <ul class="list">
+      <li>An Ubuntu Installation </li>
+      <li>A Raspberry Pi 4 (acting as our client)</li>
+      <li>A Raspberry Pi 3B+ or 4 (acting as our server)</li>
+      <li>A single Micro SD card</li>
+      <li>Some way of attaching the SD card to the Ubuntu installation, whether that be through an inbuilt port or USB adapter</li>
+      <li>An isolated network allowing an Ethernet connection for each Raspberry Pi (Network booting over WiFi is not currently possible with this setup)</li>
+      <li>A way for the server Pi to connect to the internet through WiFi, separate from the isolated network.</li>
+      </ul>
+      <h2 id="step-1---install-ubuntu"><a class="header-link" href="#step-1---install-ubuntu"></a>Step 1 - Install Ubuntu</h2>
+      <p>We will be using Ubuntu to build and flash our custom Raspbian OS images. If you already have a working Ubuntu installation, ensure you have <code>gparted</code> installed:</p>
+      <pre class="hljs"><code>sudo apt <span class="hljs-keyword">install</span> gparted</code></pre><p>and skip to Step 2.</p>
+      <p>Start by downloading the latest Desktop image of Ubuntu from from <a href="https://ubuntu.com/#download">their website</a>. I will be using version 20.04 LTS, but the latest version will work fine.</p>
+      <h3 id="setting-up-virtualbox"><a class="header-link" href="#setting-up-virtualbox"></a>Setting up VirtualBox</h3>
+      <blockquote>
+      <p>If you are already familiar with VirtualBox, skip to the next part where we set up Ubuntu. Ensure you have an Ubuntu VM with at least 40 GB of disk space.</p>
+      </blockquote>
+      <p><a href="https://www.virtualbox.org/">VirtualBox</a> is a piece of software used to install and manage virtual machines, essentially a computer within a computer. It is perfect for our needs since it is free and relatively simple to set up.</p>
+      <p>To begin, head to the <a href="https://www.virtualbox.org/wiki/Downloads">downloads</a> section of their webpage then download and save the appropriate version for your operating system. I am using Windows, so I will download the Windows package. Continue through the installation process and open VirtualBox.</p>
+      <p>Now we will create our Ubuntu VM. Click the <strong>New</strong> button to create a new virtual machine.
+      </p><img src="assets/images/a.png" class="center shadow" style="width: 80%">
+      <p>Give it a name, specify the type, and also make sure you&#39;re happy with the machine folder. If you have multiple hard drives this is the time to choose where you want the virtual machine to be installed.
+      </p> <img src="assets/images/b.png" class="center shadow" style="width: 50%">
+      <p>Next you will be prompted to choose the amount of system memory. This defaults to 1GB, but to be generous, if you have it available, feel free to add more.
+      </p><img src="assets/images/c.png" class="center shadow" style="width: 50%">
+      <p>You will then need to add a virtual hard disk. Click <strong>Create</strong> in the dialog box and ensure the type of disk selected is <strong>VDI</strong>, and that the size is <strong>dynamically allocated</strong>, though these settings should be automatically set.</p>
+      <p>Depending on what type of image you will be installing, you will need to increase the size of the hard disk in order to hold the image and operating system while we configure them. I would recommend no less than <strong>40 GB</strong> of disk space, though it is possible to change this in the future.
+      </p><img src="assets/images/d.png" class="center shadow" style="width: 50%">
+      <h3 id="installing-ubuntu"><a class="header-link" href="#installing-ubuntu"></a>Installing Ubuntu</h3>
+      <blockquote>
+      <p>If you have installed Ubuntu previously, feel free to skip to the next step.</p>
+      </blockquote>
+      <p>Now that we have our virtual machine set up, we can start it and install Ubuntu. Hit the start button at the top of the window to get it going!
+      </p><img src="assets/images/e.png" class="center shadow" style="width: 80%">
+      <p>You will then be prompted to select a start-up disk. Click the folder icon in the bottom right to open the selector menu, and <strong>Add</strong> and locate your Ubuntu image downloaded in the earlier stage.
+      </p><img src="assets/images/f.png" class="center shadow" style="width: 80%">
+      <p>If you are not prompted with this menu, or you cannot click &quot;Choose&quot; in the dialog box, close the dialog box and your VM should display an error message:</p>
+      <pre class="hljs"><code>FATAL: <span class="hljs-keyword">No</span> bootable medium found! <span class="hljs-keyword">System</span> halted.</code></pre><p>To add the start-up disk through an alternative method, click the <strong>Devices</strong> menu, then <strong>Optical Drives</strong> and <strong>Choose a disk file</strong>. Locate and select your Ubuntu .iso then restart the machine.
+      </p><img src="assets/images/g.png" class="center shadow" style="width: 80%">
+      <p>Ubuntu will then perform a disk check and boot into the install menu. When prompted, click <strong>Install Ubuntu</strong>, <em>not</em> Try Ubuntu. Select your keyboard layout then choose the <strong>Minimal installation</strong>.
+      </p><img src="assets/images/h.png" class="center shadow" style="width: 80%">
+      <p>Next, keep the default <strong>Erase disk and install Ubuntu</strong> option and hit <strong>Install Now</strong>. When prompted again, just hit <strong>Continue</strong> then select your location and set up a username and password.</p>
+      <p>Once the installation has been completed, you will be prompted to restart. When met with the screen asking you to remove the installation media, just press enter.</p>
+      <p>You can then log in with the username and password you created previously, and you now have a working Ubuntu installation!</p>
+      <p>To make the next step a little more bearable, we will adjust the screen resolution from the default. To do this, in Ubuntu, click the <strong>Show applications</strong> menu in the bottom left of the screen, type in &quot;Settings&quot; and scroll down in the menu until you find the <strong>Screen Display</strong> tab.</p>
+      <p>Here, you can then set the resolution for your display. It&#39;s best to choose the resolution closest to the resolution of your physical display, but not the same or larger. I&#39;ve found that on 1080p monitors, a resolution of 1440 x 900 works well.
+      <img src="assets/images/k.png" class="center shadow" style="width: 80%">
+      Upon applying the changes, VirtualBox should automatically resize to match the resolution you chose.</p>
+      <h2 id="step-2---building-our-server-image"><a class="header-link" href="#step-2---building-our-server-image"></a>Step 2 - Building our Server Image</h2>
+      <p>Now that we have Ubuntu installed, we need to flash an image to the SD card for our server to boot from. I will be using Raspberry Pi OS Lite, since we don&#39;t really need a desktop environment for our server.</p>
+      <h3 id="downloading-programs"><a class="header-link" href="#downloading-programs"></a>Downloading Programs</h3>
+      <p>In your Ubuntu installation, download the latest version of Pi OS Lite from the Raspberry Pi Foundation&#39;s and extract the .iso file to a memorable location.
+      <a href="https://www.raspberrypi.org/software/operating-systems/">https://www.raspberrypi.org/software/operating-systems/</a></p>
+      <p>You will also need to download a program called balenaEtcher.
+      <a href="https://www.balena.io/etcher/">https://www.balena.io/etcher/</a>
+       This is what we will be using to flash the image to our SD card. Extract the .AppImage file then double-click inside the Files explorer to open it. If it doesn&#39;t open after a few seconds, open a Terminal window, navigate to the directory you extracted it to and type the following command:</p>
+      <pre class="hljs"><code>./balenaEtcher<span class="hljs-number">-1.5</span><span class="hljs-number">.116</span>-x64.AppImage</code></pre><p>This will execute the program directly, just replace anything past the <code>./</code> with the name of your file. After you type the first few characters, pressing <code>TAB</code> should fill in the rest for you.</p>
+      <h3 id="attaching-sd-card-to-virtual-machine"><a class="header-link" href="#attaching-sd-card-to-virtual-machine"></a>Attaching SD card to Virtual Machine</h3>
+      <blockquote>
+      <p>This is only applicable if you&#39;re using a VirtualBox installation, if you have Ubuntu installed on a physical machine, you should have no issues with the SD card appearing when you plug it or an adapter in.</p>
+      </blockquote>
+      <p>With VirtualBox, you must manually tell it which USB devices to attach to your VM. To do this, in the menu at the top of your virtual machine, click <strong>Devices</strong>, then <strong>USB</strong>, then click on the name of your USB adapter.</p>
+      <h4 id="troubleshooting-steps"><a class="header-link" href="#troubleshooting-steps"></a>Troubleshooting Steps</h4>
+      <p>If the USB device does not mount after a few attempts, you can try a few of the steps below:</p>
+      <ul class="list">
+      <li><em>Add a device filter for your adapter.</em> Go to the <strong>Devices</strong> then <strong>USB</strong> menu, but this time select <strong>USB Settings</strong>. Click the USB icon with a green plus, then add your device from that menu <img src="assets/images/l.png" class="center shadow" style="width: 80%"></li>
+      <li><em>Plug it into a different USB port</em>. I personally have had success plugging the USB SD card adapter into an external USB hub, then plugging that into my PC. The device should still show up as the same name when doing this.</li>
+      <li><em>Download the VirtualBox Extension Pack</em>. The Extension Pack comes with extra support for USB 3.0 devices, and you may have better luck having it installed. There is only one download no matter what platform you are on. To install it, just download the file and run it, then click <strong>install</strong> in the menu that appears in VirtualBox. <strong><em>Just ensure it is the same version as your VirtualBox installation</em></strong>. You can download it <a href="https://www.virtualbox.org/wiki/Downloads">here</a>.
+      <img src="assets/images/m.png" class="center shadow" style="width: 80%"></li>
+      </ul>
+      <h3 id="using-etcher"><a class="header-link" href="#using-etcher"></a>Using Etcher</h3>
+      <p>Etcher has a very simple user interface. You choose an .iso file to flash from, a drive to flash to, then hit <strong>Flash</strong> and it does its thing.</p>
+      <p>We will be flashing our Pi OS Lite .iso file to our SD card. So to begin, click <strong>Flash from file</strong> at the first part of the menu, then navigate to and select your image.
+      <img src="assets/images/i.png" class="center shadow" style="width: 80%"></p>
+      <p>Next, you will need to select your SD card. Click the <strong>Select Target</strong> button and tick your SD card.
+      <img src="assets/images/j.png" class="center shadow" style="width: 80%"></p>
+      <p>Once you&#39;ve done that, hit flash, and wait for the process to complete. Once it has completed, eject the card and insert it into the server Pi to ensure it works. We now have our server image we can use in order to set up network booting!</p>
+<h2 id="step-3---client-configuration"><a class="header-link" href="#step-3---client-configuration"></a>Step 3 - Client Configuration</h2>
+<p>We will now use the server image we just created in order to configure the bootloader on our client. By default, the Raspberry Pi 4 bootloader does not automatically attempt to network boot, and only attempts to boot from an SD card or attached USB device, so we will need to change the bootloader settings in order for our client to search for our TFTP server.</p>
+<p>First, power on the client Pi <strong>without</strong> an SD card, or connected to a network. Make sure your display is connected.</p>
+<p>You should be greeted by the <a href="https://www.raspberrypi.org/documentation/hardware/raspberrypi/boot_diagnostics.md">bootloader screen</a>. This screen contains a lot of information and may seem overwhelming, but we&#39;re only looking for one bit of text.</p>
+<p>You should see a line of text near the top which looks something like this:</p>
+<pre class="hljs"><code><span class="hljs-attribute">board</span>: c<span class="hljs-number">03111</span> c<span class="hljs-number">94401</span>e<span class="hljs-number">1</span> dc:a<span class="hljs-number">6</span>:<span class="hljs-number">3</span>d:<span class="hljs-number">83</span>:<span class="hljs-number">27</span>:c<span class="hljs-number">2</span></code></pre><p>That middle value, <code>c94401e1</code>, is the <strong>serial number</strong> of our client. Yours will be different, but you&#39;ll need to make a note of it for the server configuration later on.</p>
+<p>Then, insert the SD card with the image we just built into the client Pi 4 and let it boot into the terminal. We will now edit the bootloader configuration.</p>
+<h3 id="bootloader-configuration"><a class="header-link" href="#bootloader-configuration"></a>Bootloader Configuration</h3>
+<p>To begin, ensure you have the latest version of the <code>rpi-eeprom</code> package by running the following commands:</p>
+<pre class="hljs"><code>sudo apt <span class="hljs-keyword">update</span>
+sudo apt <span class="hljs-keyword">full</span>-upgrade</code></pre><p>Next, to edit the EEPROM configuration, run:</p>
+<pre class="hljs"><code>sudo -E rpi-eeprom-<span class="hljs-built_in">config</span> <span class="hljs-comment">--edit</span></code></pre><p>The field we need to change is the <code>BOOT_ORDER</code> line. By default, it should read <code>0xf41</code> which means to try the SD card a few times, then attempt to boot from USB. A full list of these values can be found <a href="https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2711_bootloader_config.md#BOOT_ORDER">here</a>. We will replace <code>0xf41</code> with <code>0xf21</code>. This will attempt to boot from the SD card first, then from the network.</p>
+<p>The reason I recommend attempting to boot from the SD card first is mainly for efficiency. If for some reason in the future we need to boot from the SD card, it takes a long time (multiple minutes) to iterate through the retries for network booting, on the other hand, the attempts to boot from the SD card take only a few seconds at most.</p>
+<p>You <em>could</em> change the default timeout values to get around this, but this setup will work great for most use cases. Our configuration file should now look something like this:</p>
+<pre class="hljs"><code><span class="hljs-section">[all]</span>
+<span class="hljs-attr">BOOT_UART</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">WAKE_ON_GPIO</span>=<span class="hljs-number">1</span>
+<span class="hljs-attr">POWER_OFF_ON_HALT</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">DHCP_TIMEOUT</span>=<span class="hljs-number">45000</span>
+<span class="hljs-attr">DHCP_REQ_TIMEOUT</span>=<span class="hljs-number">4000</span>
+<span class="hljs-attr">TFTP_FILE_TIMEOUT</span>=<span class="hljs-number">30000</span>
+<span class="hljs-attr">TFTP_IP</span>=
+<span class="hljs-attr">TFTP_PREFIX</span>=<span class="hljs-number">0</span>
+<span class="hljs-attr">BOOT_ORDER</span>=<span class="hljs-number">0</span>xf21
+<span class="hljs-attr">SD_BOOT_MAX_RETRIES</span>=<span class="hljs-number">3</span>
+<span class="hljs-attr">NET_BOOT_MAX_RETRIES</span>=<span class="hljs-number">2</span>
+<span class="hljs-section">[none]</span>
+<span class="hljs-attr">FREEZE_VERSION</span>=<span class="hljs-number">0</span></code></pre><p>Then, strike <code>CTRL+X</code> to save the file, and hit <code>Y</code> then <code>ENTER</code> to confirm. Reboot to apply the update, then you can shut down and remove the SD card from the client, since the next time we boot it, it will be from our server.</p>
+<h2 id="step-4---server-configuration"><a class="header-link" href="#step-4---server-configuration"></a>Step 4 - Server Configuration</h2>
+<p>We will now configure our Pi 3B+/4 server to serve an image to our client and let it join the network via a TFTP/DHCP server.</p>
+<h3 id="initial-setup"><a class="header-link" href="#initial-setup"></a>Initial Setup</h3>
+<p>Insert the SD card back into the server and boot it. Before we begin the setup, ensure that the root file system has been expanded to fill the entire SD card. To do this, run:</p>
+<pre class="hljs"><code>sudo raspi-<span class="hljs-built_in">config</span> </code></pre><p>And select option <code>6  Advanced Options</code> then <code>A1  Expand Filesystem</code>. Reboot to apply the changes.</p>
+<p>Next, we will download two scripts to configure the tools required to boot the client and give it access to the internet. If you&#39;d like to read more into the specific tools being used, they are explained more indepth on a separate post I have written about the project.</p>
+<p>(link to blog post)</p>
+<p>Run the following commands to download the scripts:</p>
+<pre class="hljs"><code>sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/jamzss/</span>rpi-network-boot<span class="hljs-regexp">/raw/m</span>ain/server-setup-<span class="hljs-number">1</span>.sh
+sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/jamzss/</span>rpi-network-boot<span class="hljs-regexp">/raw/m</span>ain/server-setup-<span class="hljs-number">2</span>.sh</code></pre><p>Next, you will need to edit some values in the <code>server-setup-2.sh</code> file in order for it to run properly. To do this, run:</p>
+<pre class="hljs"><code><span class="hljs-attribute">sudo</span> nano server-setup-<span class="hljs-number">2</span>.sh</code></pre><p>Near the top of the script are variable declarations, and you&#39;ll need to change the values in quotation marks to ensure the script runs correctly.</p>
+<p><strong>serial</strong> - replace with the serial number of your client that you recorded earlier<br>
+<strong>network_ssid</strong> - replace with the SSID (name) of your wireless network the server will connect to<br>
+<strong>network_psk</strong> - replace with the password of your wireless network<br>
+<strong>router_address</strong> - replace with the IP address of the router on your wireless network.</p>
+<blockquote>
+<p>These instructions are very important, follow them closesly:</p>
+</blockquote>
+<h5 id="while-connected-to-the-internet"><a class="header-link" href="#while-connected-to-the-internet"></a>While connected to the internet</h5>
+<p><code>sudo sh server-setup-1.sh</code>
+<br>Type the command above to run the first script. It will download, unpack and prepare the client OS image.</p><br>
+<h5 id="while-connected-to-the-isolated-network-you-are-running-your-setup-on-disconnected-from-the-network-you-were-on-while-running-the-first-script"><a class="header-link" href="#while-connected-to-the-isolated-network-you-are-running-your-setup-on-disconnected-from-the-network-you-were-on-while-running-the-first-script"></a>While connected to the isolated network you are running your setup on (disconnected from the network you were on while running the first script)</h5>
+<p><code>sudo sh server-setup-2.sh</code>
+<br>Type the command above to run the second script. It configures the networking options for both the client and server. </p>
+<p>It is <strong>very important</strong> that this script is run while connected to the isolated network mentioned at the start of this guide, otherwise the network configuration will fail.</p>
+<h2 id="success"><a class="header-link" href="#success"></a>Success!</h2>
+<p>If all has gone well, you should now have fully set up network booting your Raspberry Pi 4! Run <code>sudo reboot</code> on the server, reboot the client and fingers crossed, if you have followed everything correctly, you should be booting into a working Raspberry Pi OS with no attached SD card!</p>
+    </article>
+  </body>
+</html>

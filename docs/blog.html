@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimal-ui">
+    <title>Introduction</title>
+    <link type="text/css" rel="stylesheet" href="assets/css/github-markdown-post.css">
+    <link type="text/css" rel="stylesheet" href="assets/css/pilcrow.css">
+    <link type="text/css" rel="stylesheet" href="assets/css/hljs-github.min.css"/>
+    <link type="text/css" rel="stylesheet" href="assets/css/images.css"/>
+  </head>
+  <body>
+    <article class="markdown-body"><h1 id="introduction"><a class="header-link" href="#introduction"></a>Introduction</h1>
+<p>For the past eight weeks, I have been working on creating a reliable process for network booting a Raspberry Pi 4 for a university project.</p>
+<p>As a Year 1 student in Queen&#39;s University Belfast, I&#39;m currently taking a module called &quot;Computer Science Challenges&quot;, where we are challenged to create a project of complexity way above what is traditionally expected of Year 1 students, and may be more closely compared to a final year project. I&#39;m here to share my advice and experience I have gained so far.</p>
+<h3 id="my-project"><a class="header-link" href="#my-project"></a>My Project</h3>
+<p>I opted for a project with the following brief:</p>
+<blockquote>
+<p>Develop a custom raspberry pi operating system image that will configure the network connections and auto launch a web app on boot.</p>
+<p>The RPIs should be network booted from a server (nothing is stored locally preventing many cyber security issues and one source to update for patching and new functionality)</p>
+<p>The networked device should assign a consistent ip address to each network booted raspberry pi based on their mac address so devices can be easily controlled.</p>
+<p>The project is focused on creating scripts to build a network boot raspbian image or another suitable operating system. The building of the operating system image should be fully automated so that the operating system can be easily upgraded as new versions are released.</p>
+</blockquote>
+<p>By the end of this blog post, I hope that you will learn about my project, and be able to develop it further if you&#39;d like!</p>
+<h2 id="raspberry-pis"><a class="header-link" href="#raspberry-pis"></a>Raspberry Pi&#39;s</h2>
+<p>Raspberry Pi&#39;s are wonderful little machines. Tiny single-board computers that run a custom version of Debian, dubbed <a href="https://www.raspberrypi.org/software/">RaspiOS</a>, which are extremely versitile and suited to a wide range of use cases, and hopefully you will see that as we progress throughout the post.</p>
+<p>Beginning this project, I had a very small amount of experience dealing with Raspberry Pi&#39;s, simply running a Python application on one tucked away under my desk. The fact that I already had one lying around was one reason why I opted for this particular project, since the idea of network booting it was way more exciting than what I was currently using it for.</p>
+<h2 id="network-booting"><a class="header-link" href="#network-booting"></a>Network Booting</h2>
+<p>Network booting is an incredibly useful technology used in <em>many</em> applications today. It&#39;s likely you&#39;ve used a network booted computer if you&#39;ve ever used one in a library, or your school. They are also extensively used within business where their versitility and security benefits can be utilised to assist the operations of that business, and that is the area my project will be focusing on.</p>
+<p>The process of network booting involves two groups of machines.</p>
+<ul class="list">
+<li>The <strong>server</strong> provides the operating system files to the clients requesting them, and handles any interaction the clients have with files and programs.</li>
+<li>The <strong>client</strong>, at boot, searches and downloads the operating system files made available by the server in place of a traditional OS installed on a physical disk attached to the machine.</li>
+</ul>
+<p>This process enables the clients to be smaller and cheaper due to the smaller computational power need, thanks to the server handling lots of the heavy lifting. As such, these machines are referred to as <a href="https://en.wikipedia.org/wiki/Thin_client">thin clients</a>.</p>
+<h2 id="my-setup"><a class="header-link" href="#my-setup"></a>My Setup</h2>
+<p>When I began this project, and currently at the time of writing, we are still in the middle of the Coronavirus pandemic. Because of this, my access to hardware and university equipement was heavily limited, and I was only able to afford to purchase one extra Raspberry Pi 4.</p>
+<p>Ideally, I would have been able to set up multiple Pi 4 clients to test reliable IP assignment and communication with the server, but the aim of this project is to create a fully automated setup procedure, in the hope that adding more clients in the future requires minimal work.</p>
+<p>This Pi 4 will be acting as my <strong>client</strong>, and will be booted from the Pi 3B+ I already had, acting as my <strong>server</strong>.</p>
+<p>One main focus of network booting in this way is giving the server as much control over the clients as is possible. In my case, this also included controlling the clients&#39; access to the internet, requiring internet traffic to first flow through the server. This setup allows the server to block sites, scan for malicious traffic or perform related actions to further improve security.</p>
+<p>To set this up in my home, it was thankfully not too much of a challenge. The Pi 3B+ has both a wired ethernet port, and a wireless adapter, so I decided to utilise the wired connection for interactions with the client, the use the wireless adapter for connecting to the internet.</p>
+<p>Because I was creating a network physically isolated from my home network, I also needed an extra switch to plug the server and client in to.</p>
+<p>Below is a rough overview of my setup:
+</p>
+<img src="assets/images/network_setup.png" class="center"></img>
+<h3 id="etcher"><a class="header-link" href="#etcher"></a>Etcher</h3>
+<p><a href="https://www.balena.io/etcher/">Etcher</a> is a simple tool for flashing OS image files to external devices, in my case, a MicroSD card through a USB adapter. I used Etcher to flash the Rasberry Pi Lite OS to my card in order to set up the client and the server. It&#39;s very convenient that the OS is backwards compatible with all models of Raspberry Pi, and saved me a lot of time. </p>
+<p>I go into this process in more detail on the how-to guide I produced for this setup, linked at the bottom of this post.</p>
+<h2 id="client-setup"><a class="header-link" href="#client-setup"></a>Client Setup</h2>
+<p>Unfortunately network booting is not enabled by default on the Raspberry Pi 4, and requires a small bit of configuration to set up. Luckily though this allows us to quickly access the serial number of the Pi, I&#39;ll explain a bit later why we need that.</p>
+<p>I had to change the <strong>boot order</strong> of the client, so that it knows to search the network for an operating system, rather than trying to boot from an SD card and then just giving up when it can&#39;t find one.</p>
+<p>This was done with a few simple commands on the client:</p>
+<pre class="hljs"><code>sudo -E rpi-eeprom-config --<span class="hljs-keyword">edit</span>
+
+# <span class="hljs-keyword">change</span> BOOT_ORDER from <span class="hljs-number">0</span>xf41 <span class="hljs-keyword">to</span> <span class="hljs-number">0</span>xf21 then save
+
+# reboot <span class="hljs-keyword">to</span> apply <span class="hljs-keyword">changes</span>
+sudo reboot</code></pre><h2 id="server-setup"><a class="header-link" href="#server-setup"></a>Server Setup</h2>
+<p>Setting up the server Pi was by far the most involved part of this endeavour. Not having a lot of experience with Raspberry Pis or linux-based operating systems, and having no experience with network booting, I was completely at the mercy of the availability of online resources to help me get started.
+Throughout this process, I came across some useful utilities that helped me along the way.</p>
+<blockquote>
+<p>Automated scripts for both the client and server setup process are included in the link to the GitHub repo at the bottom of the post.</p>
+</blockquote>
+<h4 id="dnsmasq"><a class="header-link" href="#dnsmasq"></a>dnsmasq</h4>
+<p><a href="https://wiki.debian.org/dnsmasq">dnsmasq</a>  was an essential tool in my setup. It provides DHCP, DNS and TFTP functions, but I opted not to use the DNS functionality, since I will already be connected to a home network.</p>
+<ul class="list">
+<li><strong>DHCP</strong> (<a href="https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol">Dynamic Host Configuration Protocol</a>) was used to assign the client an IP address upon boot, so that it may communicate with the server.</li>
+<li><strong>TFTP</strong> (<a href="https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol">Trivial File Transfer Protocol</a>) was used to send the OS files to the client once a connection had been established.</li>
+</ul>
+<h4 id="nfs-kernel-server"><a class="header-link" href="#nfs-kernel-server"></a>nfs-kernel-server</h4>
+<p><a href="https://www.tecmint.com/install-nfs-server-on-ubuntu/">nfs-kernel-server</a> was used to export the client filesystem, making it available to the client Pi 4. It was incredibly easy to set up and configure.
+NFS is a protocol to enable the sharing of files and directories to other linux machines on a network, so it was perfect for my needs.</p>
+<h3 id="downloading-and-unpacking-the-client-image"><a class="header-link" href="#downloading-and-unpacking-the-client-image"></a>Downloading and unpacking the client image</h3>
+<p>The first step was to prepare the client image for booting. I downloaded it from the raspberrypi.org website and unpacked it and created the device maps using <a href="https://linux.die.net/man/8/kpartx">kpartx</a>.</p>
+<pre class="hljs"><code>cd <span class="hljs-regexp">/home/</span>pi
+sudo apt install unzip kpartx dnsmasq nfs-kernel-server -y
+sudo mkdir -p <span class="hljs-regexp">/nfs/</span>raspi1
+sudo wget https:<span class="hljs-regexp">//</span>downloads.raspberrypi.org<span class="hljs-regexp">/raspios_armhf/im</span>ages<span class="hljs-regexp">/raspios_armhf-2021-01-12/</span><span class="hljs-number">2021</span>-<span class="hljs-number">01</span>-<span class="hljs-number">11</span>-raspios-buster-armhf.zip
+
+unzip <span class="hljs-number">2021</span>-<span class="hljs-number">01</span>-<span class="hljs-number">11</span>-raspios-buster-armhf.zip
+sudo kpartx -a -v <span class="hljs-number">2021</span>-<span class="hljs-number">01</span>-<span class="hljs-number">11</span>-raspios-buster-armhf.img
+
+mkdir rootmnt
+mkdir bootmnt
+sudo mount <span class="hljs-regexp">/dev/m</span>apper<span class="hljs-regexp">/loop0p2 rootmnt/</span>
+sudo mount <span class="hljs-regexp">/dev/m</span>apper<span class="hljs-regexp">/loop0p1 bootmnt/</span>
+sudo cp -av rootmnt<span class="hljs-regexp">/* /</span>nfs<span class="hljs-regexp">/raspi1/</span>
+sudo cp -av bootmnt<span class="hljs-regexp">/* /</span>nfs<span class="hljs-regexp">/raspi1/</span>boot/</code></pre><p>Next, I replaced some firmware files with their updated versions from the official GitHub repository.</p>
+<pre class="hljs"><code>cd <span class="hljs-regexp">/nfs/</span>raspi1/boot
+sudo rm start4.elf
+sudo rm fixup4.dat
+sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/Hexxeh/</span>rpi-firmware<span class="hljs-regexp">/raw/m</span>aster/start4.elf
+sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/Hexxeh/</span>rpi-firmware<span class="hljs-regexp">/raw/m</span>aster/fixup4.dat</code></pre><p>Now that the file system for the client is ready to be used, I need to set up TFTP and nfs-kernel-server.</p>
+<blockquote>
+<p>The <code>$serial</code> text is replaced with the serial number of the client to be booted, more info is included in the <code>server-setup-2.sh</code> file on the GitHub repo at the bottom of the post.</p>
+</blockquote>
+<pre class="hljs"><code>cd /
+sudo mkdir -p <span class="hljs-regexp">/tftpboot/</span><span class="hljs-variable">$serial</span>
+echo <span class="hljs-string">&quot;/nfs/raspi1/boot /tftpboot/$serial none defaults,bind 0 0&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>fstab
+sudo mount <span class="hljs-regexp">/tftpboot/</span><span class="hljs-variable">$serial</span>
+sudo chmod <span class="hljs-number">777</span> /tftpboot
+sudo touch <span class="hljs-regexp">/nfs/</span>raspi1<span class="hljs-regexp">/boot/</span>ssh
+sudo sed -i <span class="hljs-regexp">/UUID/</span>d <span class="hljs-regexp">/nfs/</span>raspi1<span class="hljs-regexp">/etc/</span>fstab
+echo <span class="hljs-string">&quot;console=serial0,115200 console=tty root=/dev/nfs nfsroot=192.168.10.1:/nfs/raspi1,vers=3 rw ip=dhcp rootwait elevator=deadline&quot;</span> | sudo tee <span class="hljs-regexp">/nfs/</span>raspi1<span class="hljs-regexp">/boot/</span>cmdline.txt
+echo <span class="hljs-string">&quot;/nfs/raspi1 *(rw,sync,no_subtree_check,no_root_squash)&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>exports</code></pre><p>Next it was time to set up dnsmasq. My inexperience really shows here, there is probably a better way to modify this file. Get used to a lot of echoing.</p>
+<pre class="hljs"><code>echo <span class="hljs-string">&#x27;log-dhcp&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&#x27;enable-tftp&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&#x27;tftp-root=/tftpboot&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&#x27;pxe-service=0,&quot;Raspberry Pi Boot&quot;&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf</code></pre><p>At this stage, if the client was connected to my home network, it would boot. But I still wanted finer control over the client&#39;s access to the internet, so the rest of the setup concerns making that happen.</p>
+<p>Enabling wireless networking was a bit of a pain. Through a bit of trial and error, it seems difficult to set up through scripts, still requiring <code>raspi-config</code> to be run.</p>
+<pre class="hljs"><code>sudo raspi-config
+<span class="hljs-comment"># select localisation options</span>
+<span class="hljs-comment"># set country code</span>
+<span class="hljs-comment"># finish</span>
+<span class="hljs-comment"># reboot</span>
+
+<span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;network={&quot;</span> | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
+<span class="hljs-built_in">echo</span> ssid=\&quot;<span class="hljs-variable">$network_ssid</span>\&quot; | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
+<span class="hljs-built_in">echo</span> psk=\&quot;<span class="hljs-variable">$network_psk</span>\&quot; | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf
+<span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;}&quot;</span> | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf</code></pre><p>The next thing to do is set up iptables, which will manage traffic in both directions from the client. If you&#39;re like me and had/still have no idea how this works, there&#39;s a really good guide linked at the bottom of the post.</p>
+<pre class="hljs"><code><span class="hljs-attribute">sudo</span> iptables -F
+<span class="hljs-attribute">sudo</span> iptables -t nat -F
+<span class="hljs-attribute">sudo</span> iptables -t nat -A POSTROUTING -o wlan<span class="hljs-number">0</span> -j MASQUERADE
+<span class="hljs-attribute">sudo</span> iptables -A FORWARD -i wlan<span class="hljs-number">0</span> -o eth<span class="hljs-number">0</span> -m state --state RELATED,ESTABLISHED -j ACCEPT
+<span class="hljs-attribute">sudo</span> iptables -A FORWARD -i eth<span class="hljs-number">0</span> -o wlan<span class="hljs-number">0</span> -j ACCEPT
+<span class="hljs-attribute">sudo</span> sh -c <span class="hljs-string">&quot;sudo iptables-save &gt; /etc/iptables.v4&quot;</span>
+<span class="hljs-attribute">echo</span> <span class="hljs-string">&quot;1&quot;</span> | sudo tee /proc/sys/net/ipv<span class="hljs-number">4</span>/ip_forward
+<span class="hljs-attribute">echo</span> <span class="hljs-string">&quot;net.ipv4.ip_forward=1&quot;</span> | sudo tee -a /etc/sysctl.conf</code></pre><p>The iptables configuration, annoyingly, doesn&#39;t persist between reboots, so I had to modify <code>rc.local</code> to reload them whenever the server boots up.</p>
+<pre class="hljs"><code>sudo sed -i <span class="hljs-string">&quot;$ d&quot;</span> <span class="hljs-regexp">/etc/</span>rc.local
+echo <span class="hljs-string">&#x27;sudo sh -c &quot;iptables-restore &lt; /etc/iptables.v4&quot;&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>rc.local
+echo <span class="hljs-string">&quot;sleep 3&quot;</span>
+echo <span class="hljs-string">&#x27;sudo route add -net default gw 192.168.10.1 netmask 0.0.0.0 dev eth0&#x27;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>rc.local
+echo <span class="hljs-string">&quot;sudo route del -net 0.0.0.0 gw 192.168.10.1 netmask 0.0.0.0 dev eth0&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>rc.local</code></pre><p>dnsmasq now needs to be configured to hand out DHCP leases to clients. The range here can be modified, but on my setup I was running a very small number (1) of clients so I chose a small range.</p>
+<pre class="hljs"><code>echo <span class="hljs-string">&quot;interface=eth0&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&quot;bind-interfaces&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&quot;server=8.8.8.8&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&quot;domain-needed&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&quot;bogus-priv&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf
+echo <span class="hljs-string">&quot;dhcp-range=192.168.10.20,192.168.10.30,12h&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dnsmasq.conf</code></pre><p>Finally, we need to give the server a static IP address. I&#39;ve also set the nameserver to the address of my home router, and made sure the wireless adapter has been enabled.</p>
+<pre class="hljs"><code>echo <span class="hljs-string">&quot;interface eth0&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dhcpcd.conf
+echo <span class="hljs-string">&quot;static ip_address=192.168.10.1&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>dhcpcd.conf
+sudo sed -i <span class="hljs-string">&quot;$ d&quot;</span> <span class="hljs-regexp">/etc/</span>resolv.conf
+echo <span class="hljs-string">&quot;nameserver $router_address&quot;</span> | sudo tee -a <span class="hljs-regexp">/etc/</span>resolv.conf
+sudo wpa_cli -i wlan0 reconfigure</code></pre><h2 id="why-is-this-useful"><a class="header-link" href="#why-is-this-useful"></a>Why is this useful?</h2>
+<p>The aim of this setup is that it provides a quick and easy setup for network booting. In a more real-world scenario, not just &quot;making it for a university project&quot;, this setup could be used to replace any computer which is used for a small number of lightweight applications, such as word processing, or makes use of web applications.</p>
+<p>The main advantages of a network booting setup for these applications compared to having a standalone machine for each computer are:</p>
+<ul class="list">
+<li><strong>Cost</strong>. Raspberry Pi&#39;s are frankly dirt cheap. A Pi 4 with the board, a case, a display cable and power supply will cost you just over £50. Compare that to an entire desktop PC and you could be spending anywhere from £150 to £600, to accomplish the same tasks.</li>
+<li><strong>Efficiency</strong>. Since all files are stored on one server, tasks which otherwise would take a lot of manual effort such as upgrading the OS or  updating programs are orders of magnitude faster having all of them stored on a single machine. There is only one source for upgrades and updates to be done.</li>
+<li><strong>Security</strong>. In this setup, the server has complete control over the connection the clients have to the internet, and is able to monitor and restrict any internet traffic that could be wanted.</li>
+</ul>
+<p>I can see this setup being particularly useful to small businesses, with maybe 5-10 workstations or kiosks, where they would be able to use, update and control them much more efficiently and effectively.</p>
+<h2 id="congratulations-you-made-it-to-the-end"><a class="header-link" href="#congratulations-you-made-it-to-the-end"></a>Congratulations, you made it to the end!</h2>
+<p>Thanks for reading this far. Hopefully you&#39;ve gained an understanding of why this project could be beneficial to a wide range people, and that you appreciate the coolness factor as much as I do.</p>
+<h3 id="diy"><a class="header-link" href="#diy"></a>DIY</h3>
+<p>If you&#39;d like to play around with this setup yourself, I have set up a GitHub repository where I&#39;ve condensed the content of this post into two scripts you can run on (probably) any Debian-esque OS. Make sure to read the README file as it contains a lot of important info on how they&#39;re supposed to be run.</p>
+<p><a href="https://github.com/jamzss/rpi-network-boot">https://github.com/jamzss/rpi-network-boot</a></p>
+<p>If you require it, I&#39;ve also produced a how-to guide for getting set up with an Ubuntu installation to prepare an OS image for your server.</p>
+<p>(link to how-to guide)</p>
+<h3 id="other-useful-resources"><a class="header-link" href="#other-useful-resources"></a>Other Useful Resources</h3>
+<p>Here is a list of resources I used while researching and working on the project, if you&#39;d like to read more into some specific resources I&#39;ve used.</p>
+<ul class="list">
+<li><a href="https://www.raspberrypi.org/documentation/hardware/raspberrypi/booteeprom.md">Raspberry Pi 4 Bootloader Configuration</a></li>
+<li><a href="https://hackaday.com/2019/11/11/network-booting-the-pi-4/">Simple Network Booting Guide</a></li>
+<li><a href="https://www.instructables.com/Share-WiFi-With-Ethernet-Port-on-a-Raspberry-Pi/">Sharing WiFi connection over Ethernet</a></li>
+</ul>
+    </article>
+  </body>
+</html>
