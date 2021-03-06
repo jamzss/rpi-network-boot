@@ -17,7 +17,7 @@
       <h2 id="more-about-network-booting"><a class="header-link" href="#more-about-network-booting"></a>More about Network booting</h2>
 <p>Network booting is the process of, you guessed it, booting a computer over the network with no copy of the operating system stored locally. The goal of this guide is to set up this process with a pair of Raspberry Pi&#39;s by configuring different programs and services in order to serve up the OS to the client when it tries to boot.</p>
 <p>If you&#39;d like to read more indepth into the tools we&#39;ll be using in this guide, I&#39;ve written a longer post about the project which you can read here:
-(link to blog post)</p>
+<a href="https://jamzss.github.io/rpi-network-boot/">https://jamzss.github.io/rpi-network-boot/</a></p>
 <p>The interactions we hope to set up between the client and server will allow for the client to receive an IP address via DHCP, and an operating system via NFS and TFTP, summarised in a diagram below:</p>
 <img src="assets/images/n.png" class="center">
       
@@ -135,7 +135,7 @@ sudo apt <span class="hljs-keyword">full</span>-upgrade</code></pre><p>Next, to 
 <p>Insert the SD card back into the server and boot it. Before we begin the setup, ensure that the root file system has been expanded to fill the entire SD card. To do this, run:</p>
 <pre class="hljs"><code>sudo raspi-<span class="hljs-built_in">config</span> </code></pre><p>And select option <code>6  Advanced Options</code> then <code>A1  Expand Filesystem</code>. Reboot to apply the changes.</p>
 <p>Next, we will download two scripts to configure the tools required to boot the client and give it access to the internet. If you&#39;d like to read more into the specific tools being used, they are explained more indepth on a separate post I have written about the project.</p>
-<p>(link to blog post)</p>
+<p><a href="https://jamzss.github.io/rpi-network-boot/">https://jamzss.github.io/rpi-network-boot/</a></p>
 <p>Run the following commands to download the scripts:</p>
 <pre class="hljs"><code>sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/jamzss/</span>rpi-network-boot<span class="hljs-regexp">/raw/m</span>ain/server-setup-<span class="hljs-number">1</span>.sh
 sudo wget https:<span class="hljs-regexp">//gi</span>thub.com<span class="hljs-regexp">/jamzss/</span>rpi-network-boot<span class="hljs-regexp">/raw/m</span>ain/server-setup-<span class="hljs-number">2</span>.sh</code></pre><p>Next, you will need to edit some values in the <code>server-setup-2.sh</code> file in order for it to run properly. To do this, run:</p>
