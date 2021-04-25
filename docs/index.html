@@ -72,7 +72,18 @@ Throughout this process, I came across some useful utilities that helped me alon
 <h4 id="nfs-kernel-server"><a class="header-link" href="#nfs-kernel-server"></a>nfs-kernel-server</h4>
 <p><a href="https://www.tecmint.com/install-nfs-server-on-ubuntu/">nfs-kernel-server</a> was used to export the client filesystem, making it available to the client Pi 4. It was incredibly easy to set up and configure.
 NFS is a protocol to enable the sharing of files and directories to other linux machines on a network, so it was perfect for my needs.</p>
-<h3 id="downloading-and-unpacking-the-client-image"><a class="header-link" href="#downloading-and-unpacking-the-client-image"></a>Downloading and unpacking the client image</h3>
+<blockquote>
+<p><strong>How does NFS work?</strong>
+NFS (<a href="https://en.wikipedia.org/wiki/Network_File_System">Network File System</a>), as discussed, is a protocol allowing a client computer to access files on a server over a network. I&#39;ve summarised the steps of the process which will allow the client to access the operating system stored on the server:</p>
+<ol class="list">
+<li>We define the directory containing the client operating system in <code>/etc/exports</code> which is mentioned later on in the post.</li>
+<li>The client issues a mount request to this directory</li>
+<li>If successful, the client is sent a file handle after it has been authorised by the server</li>
+<li>The client will then boot from this directory using the handle.</li>
+</ol>
+<p>This process means that every read and write the client makes goes through the server, since absolutely no data is stored locally on the client. The benefits of this setup are discussed in detail later on.</p>
+</blockquote>
+      <h3 id="downloading-and-unpacking-the-client-image"><a class="header-link" href="#downloading-and-unpacking-the-client-image"></a>Downloading and unpacking the client image</h3>
 <p>The first step was to prepare the client image for booting. I downloaded it from the raspberrypi.org website and unpacked it and created the device maps using <a href="https://linux.die.net/man/8/kpartx">kpartx</a>.</p>
 <pre class="hljs"><code>cd <span class="hljs-regexp">/home/</span>pi
 sudo apt install unzip kpartx dnsmasq nfs-kernel-server -y
@@ -152,7 +163,98 @@ sudo wpa_cli -i wlan0 reconfigure</code></pre><h2 id="why-is-this-useful"><a cla
 <li><strong>Security</strong>. In this setup, the server has complete control over the connection the clients have to the internet, and is able to monitor and restrict any internet traffic that could be wanted.</li>
 </ul>
 <p>I can see this setup being particularly useful to small businesses, with maybe 5-10 workstations or kiosks, where they would be able to use, update and control them much more efficiently and effectively.</p>
-<h2 id="congratulations-you-made-it-to-the-end"><a class="header-link" href="#congratulations-you-made-it-to-the-end"></a>Congratulations, you made it to the end!</h2>
+<h2 id="what-comes-next"><a class="header-link" href="#what-comes-next"></a>What comes next?</h2>
+<p>Since this project was time-limited, I was not able to implement all of the functionality that I would have wanted to. There are lots of different ways to expand upon what I&#39;ve managed to put together so far, and I&#39;ll list a few potential ideas below:</p>
+<ul class="list">
+<li>Creating a web application and running a server in the cloud to create a very large distributed network</li>
+<li>Customise the boot process to download and run applications from the server</li>
+<li>Allow a client to edit files on the server, affecting other clients as well</li>
+<li>Develop a program to control the GPIO pins and potentially a camera attachment</li>
+</ul>
+<p> Raspberry Pis are so versitile, this list could go on much more, but hopefully a few of these may guide you in a suitable direction of improving this project.</p>
+<p>I&#39;ve included a very simple example, enabling the control of the clients LEDs from the server using a <a href="https://flask.palletsprojects.com/en/1.1.x/">Flask</a> webserver, in the <strong>examples/</strong> directory in the GitHub repo, linked at the bottom of the post.</p>
+<h2 id="testing-and-potential-issues"><a class="header-link" href="#testing-and-potential-issues"></a>Testing and Potential Issues</h2>
+<p>With a solution like this, using lots of different programs and technologies, it is inevitable that issues will occur. To help to evaluate these, and to highlight potential solutions, I&#39;ve created a table below to summarise them.</p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Severity</th>
+<th>Probability</th>
+<th>Resolution Difficulty</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Server limited to 1 SD card worth of storage space</td>
+<td>Medium</td>
+<td>Dependent on # clients</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Internet connection speed limited by speed of home network and by WiFi</td>
+<td>Low</td>
+<td>Dependent on # clients</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Access to the internet may be lost</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>A client may lose connection to the server</td>
+<td>High</td>
+<td>Low</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>A client may overheat</td>
+<td>Medium</td>
+<td>Low</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>The server may overheat</td>
+<td>High</td>
+<td>Low</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>A Pi may suffer a loss of power</td>
+<td>High</td>
+<td>Very low</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>A client may fail to boot from the server</td>
+<td>High</td>
+<td>Low</td>
+<td>Medium</td>
+</tr>
+</tbody></table>
+<h5 id="server-limited-to-1-sd-card-worth-of-storage-space"><a class="header-link" href="#server-limited-to-1-sd-card-worth-of-storage-space"></a>Server limited to 1 SD card worth of storage space</h5>
+<p>With the current setup, the only storage device accessed by the server is its own internal SD card slot. Only running one client, this isn&#39;t a big issue. But once you start to add more, storage space becomes a concern. Resolving this would require either mounting an external storage device attached through USB, which is not very fast, or by attaching a NAS to the network, which is not very cheap or easy. Both solutions present their own set of challenges, but either could suffice given they are correctly set up.</p>
+<p>To test if this is an issue, take the amount of storage space used by one client installation, plus a bit of headroom for expansion, and multiply it by the number of clients you plan to have. If that number is more than the available space on the server SD card, then upgrading the storage space is something which should be looked into.</p>
+<h5 id="internet-connection-speed-limited-by-speed-of-home-network-and-by-wifi"><a class="header-link" href="#internet-connection-speed-limited-by-speed-of-home-network-and-by-wifi"></a>Internet connection speed limited by speed of home network and by WiFi</h5>
+<p>This is not an incredibly severe issue, but if multiple clients are trying to access the internet at once, there could potentially be bottlenecks caused by this. Unfortunately this is not very easy to fix. Moving to a fully wired connection between clients, server and internet would require a lot of effort to set up the server to connect both to the internet and the client network through the same network port, while maintaining the security that this solution provides by not exposing the clients to the internet at all.</p>
+<p>To test this, an internet speed test could be run with a single client and multiple clients, in order to determine whether when multiple clients are hitting the connection consistently, if the slowdown perceived is noticible.</p>
+<h5 id="access-to-the-internet-may-be-lost"><a class="header-link" href="#access-to-the-internet-may-be-lost"></a>Access to the internet may be lost</h5>
+<p>This would not be good, but it wouldn&#39;t be catastrophic. The solution can still function when access to the internet, but may be less useful depending on the implementation and what purpose the clients serve. It may be possible, in a business setting, to have a secondary internet connection in case the primary one fails to ensure as little downtime occurs as possible.</p>
+<p>To test if the connection has been lost, a simple program could be implemented into the server to ping some well-known, reliable web servers every 15 seconds or so. If all pings fail, it can assume that the internet connection has been lost, and could appropriately communicate this to the clients or alert an administrator in some other way.</p>
+<h5 id="a-client-may-lose-connection-to-the-server"><a class="header-link" href="#a-client-may-lose-connection-to-the-server"></a>A client may lose connection to the server</h5>
+<p>The client losing connection to the server is the biggest foreseeable issue with this solution. When this happens, the client effectively loses access to its storage which affects pretty much every operation it could perform. In my experience, the client OS will become unresponsive and hang. Since there are many different reasons this could happen, it is difficult to prevent, and the solution is just to restart the client.</p>
+<h5 id="a-client-may-overheat"><a class="header-link" href="#a-client-may-overheat"></a>A client may overheat</h5>
+<p>For most use cases, overheating should not be a major concern for Raspberry Pis since they aren&#39;t typically under heavy constant load. Although I&#39;ve given it a medium severity rating, since there is potential for component damage, it is very easy to solve either by ventilating the area in which the Pis are running, or by mounting a fan and heatsink to the processor.</p>
+<p>Monitoring and testing the temperature is quite straightforward, there ways built into Raspberry Pi OS to access the CPU temperature, and useful Python libraries such as <a href="https://pypi.org/project/psutil/">psutil</a> can assist, and also make it easier to forward this information on to the server.</p>
+<h5 id="the-server-may-overheat"><a class="header-link" href="#the-server-may-overheat"></a>The server may overheat</h5>
+<p>If the server is under a lot of strain, it may be prone to overheating. It&#39;s more severe if the server overheats since it is responsible for 1 or more clients, and there is the potential for component damage or reduced performance due to thermal throttling. The monitoring and testing process for keeping track of the server temperature is the same for the clients.</p>
+<h5 id="a-pi-may-suffer-a-loss-of-power"><a class="header-link" href="#a-pi-may-suffer-a-loss-of-power"></a>A Pi may suffer a loss of power</h5>
+<p>In the event of a power failure there is potential for data corruption if a client was midway through transmitting or receiving data to or from the server. There&#39;s not really a way to test for this, but in a professional environment, a UPS (Uninterruptable Power Supply) may be a worthwhile investment, so that in the event of a power loss, the Pis may shut down gracefully.</p>
+<h5 id="a-client-may-fail-to-boot-from-the-server"><a class="header-link" href="#a-client-may-fail-to-boot-from-the-server"></a>A client may fail to boot from the server</h5>
+<p>If the network connection is intact and the client still fails to boot then it would indicate an issue with the server setup. There isn&#39;t a way to reliably test this remotely without physical access to the machines, since it would be impossible to determine whether it was a networking issue or not.
+Fixing an issue like this would massively depend on the error received on the client, but likely would be a lot of work.</p>
+      <h2 id="congratulations-you-made-it-to-the-end"><a class="header-link" href="#congratulations-you-made-it-to-the-end"></a>Congratulations, you made it to the end!</h2>
 <p>Thanks for reading this far. Hopefully you&#39;ve gained an understanding of why this project could be beneficial to a wide range people, and that you appreciate the coolness factor as much as I do.</p>
 <h3 id="diy"><a class="header-link" href="#diy"></a>DIY</h3>
 <p>If you&#39;d like to play around with this setup yourself, I have set up a GitHub repository where I&#39;ve condensed the content of this post into two scripts you can run on (probably) any Debian-esque OS. Make sure to read the README file as it contains a lot of important info on how they&#39;re supposed to be run.</p>
