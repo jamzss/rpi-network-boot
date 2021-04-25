@@ -402,12 +402,12 @@ body {
 }
 
 .markdown-body table tr {
-  background-color: #fff;
+  background-color: #23272a;
   border-top: 1px solid #ccc;
 }
 
 .markdown-body table tr:nth-child(2n) {
-  background-color: #f8f8f8;
+  background-color: #1c1f22;
 }
 
 .markdown-body img {
